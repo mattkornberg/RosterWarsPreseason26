@@ -155,6 +155,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="league-toggle">
       <button class="league-btn active" id="btn-league-main" onclick="setLeague('main')">Main League</button>
       <button class="league-btn" id="btn-league-futures" onclick="setLeague('futures')">Futures League</button>
+      <button class="league-btn" id="btn-league-rankings" onclick="showRankings()">Player Rankings</button>
     </div>
     <div class="conf-toggle" id="conf-toggle"></div>
     <button class="how-it-works-btn" onclick="showHowItWorks()">⚙️ How It Works</button>
@@ -168,6 +169,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="team-grid" id="team-grid"></div>
   </div>
 
+  <div id="rankings-view" style="display:none;">
+    <button class="back-btn" onclick="showDirectory()">&larr; Back to standings</button>
+    <div id="rankings-pos-toggle" style="margin:14px 0;"></div>
+    <div id="rankings-list"></div>
+  </div>
   <div id="how-it-works-view" style="display:none;">
     <button class="back-btn" onclick="showDirectory()">&larr; Back to standings</button>
     <div id="how-it-works-content"></div>
@@ -263,9 +269,15 @@ function setLeague(league){
   currentLeague = league;
   document.getElementById('btn-league-main').classList.toggle('active', league==='main');
   document.getElementById('btn-league-futures').classList.toggle('active', league==='futures');
+  document.getElementById('btn-league-rankings').classList.remove('active');
   currentConf = CONF_LABELS[league][0][0];
   renderConfToggle();
-  renderDirectory();
+  const rankingsVisible = document.getElementById('rankings-view').style.display === 'block';
+  if (rankingsVisible) {
+    renderRankingsList();
+  } else {
+    renderDirectory();
+  }
 }
 
 function renderConfToggle(){
@@ -353,6 +365,7 @@ function openTeam(name){
 
   document.getElementById('directory-view').style.display = 'none';
   document.getElementById('how-it-works-view').style.display = 'none';
+  document.getElementById('rankings-view').style.display = 'none';
   document.getElementById('team-view').style.display = 'block';
 
   document.getElementById('team-header').innerHTML = `
@@ -388,18 +401,99 @@ function openTeam(name){
 function showDirectory(){
   document.getElementById('team-view').style.display = 'none';
   document.getElementById('how-it-works-view').style.display = 'none';
+  document.getElementById('rankings-view').style.display = 'none';
   document.getElementById('directory-view').style.display = 'block';
+  document.getElementById('btn-league-rankings').classList.remove('active');
   currentTeam = null;
 }
 
 function showHowItWorks(){
   document.getElementById('team-view').style.display = 'none';
   document.getElementById('directory-view').style.display = 'none';
+  document.getElementById('rankings-view').style.display = 'none';
   document.getElementById('how-it-works-view').style.display = 'block';
   if (!document.getElementById('how-it-works-content').innerHTML) {
     document.getElementById('how-it-works-content').innerHTML = buildHowItWorksHTML();
   }
   window.scrollTo(0,0);
+}
+
+let currentRankingsPos = 'QB';
+
+function showRankings(){
+  document.getElementById('team-view').style.display = 'none';
+  document.getElementById('how-it-works-view').style.display = 'none';
+  document.getElementById('directory-view').style.display = 'none';
+  document.getElementById('rankings-view').style.display = 'block';
+  document.getElementById('btn-league-rankings').classList.add('active');
+  currentTeam = null;
+  renderRankingsPosToggle();
+  renderRankingsList();
+  window.scrollTo(0,0);
+}
+
+function renderRankingsPosToggle(){
+  const el = document.getElementById('rankings-pos-toggle');
+  el.innerHTML = POS_ORDER.map(p =>
+    `<button class="conf-btn ${p===currentRankingsPos?'active':''}" onclick="switchRankingsPos('${p}')">${p}</button>`
+  ).join('');
+}
+
+function switchRankingsPos(pos){
+  currentRankingsPos = pos;
+  renderRankingsPosToggle();
+  renderRankingsList();
+}
+
+function allPlayersForLeague(league){
+  const out = [];
+  (APP_DATA[league] || []).forEach(t => {
+    ['starters','bench','taxi'].forEach(bucket => {
+      (t[bucket] || []).forEach(p => {
+        out.push({ player: p, team: t.team, conf: t.conf, bucket });
+      });
+    });
+  });
+  return out;
+}
+
+function renderRankingsList(){
+  const el = document.getElementById('rankings-list');
+  const all = allPlayersForLeague(currentLeague).filter(x => x.player.pos === currentRankingsPos);
+
+  // The same real NFL player is often independently rostered once per conference within a
+  // league (e.g. once in DD, once in TT) -- merge those into a single ranked row rather than
+  // showing true duplicates.
+  const merged = new Map();
+  all.forEach(x => {
+    const key = x.player.name;
+    if (!merged.has(key)) {
+      merged.set(key, { player: x.player, nfl_team: x.player.nfl_team, owners: [] });
+    }
+    merged.get(key).owners.push({ team: x.team, conf: x.conf, bucket: x.bucket });
+  });
+  const list = Array.from(merged.values());
+  list.sort((a,b) => val(b.player) - val(a.player));
+
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state">No ${esc(currentRankingsPos)} found.</div>`;
+    return;
+  }
+  el.innerHTML = `<div class="trade-card">` + list.map((x, i) => {
+    const ownersStr = x.owners.map(o => {
+      const bucketTag = o.bucket === 'starters' ? '' : ` <span style="color:var(--text3);font-size:0.68rem;text-transform:uppercase;">(${o.bucket})</span>`;
+      return `<span style="color:var(--text2);cursor:pointer;" onclick="openTeam('${esc(o.team).replace(/'/g,"\\'")}')">${esc(o.team)}</span>${bucketTag}`;
+    }).join(' &nbsp;|&nbsp; ');
+    return `<div class="lineup-row" style="padding:8px 0;border-bottom:1px solid var(--border);">
+      <span style="display:inline-block;width:34px;color:var(--text3);font-weight:700;">${i+1}</span>
+      <strong>${esc(x.player.name)}</strong>
+      <span style="color:var(--text3);"> \u2014 ${esc(x.nfl_team||'')}</span>
+      <span style="float:right;">
+        ${ownersStr}
+        <strong style="margin-left:14px;">${val(x.player).toFixed(1)}</strong>
+      </span>
+    </div>`;
+  }).join('') + `</div>`;
 }
 
 function buildHowItWorksHTML(){
