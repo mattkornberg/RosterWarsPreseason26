@@ -177,39 +177,72 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
   <div id="formula-lab-view" style="display:none;">
     <button class="back-btn" onclick="showDirectory()">&larr; Back to standings</button>
-    <div class="section-title" style="margin-top:10px;">🎛️ Bench Valuation Formula Lab</div>
-    <p style="color:var(--text3);font-size:0.85rem;max-width:640px;margin:6px 0 18px;">
-      Total Roster = Starting Power + Bench Value. Bench Value is built from Value Over
-      Replacement (VOR) for each bench player. Drag the sliders to see how different
-      assumptions would change the rankings. The <strong>official formula</strong> uses
-      15th percentile / top 15 / 65% decay.
-    </p>
-    <div class="card-block" style="max-width:640px;margin-bottom:20px;">
-      <div style="margin-bottom:16px;">
-        <label style="display:flex;justify-content:space-between;font-size:0.85rem;">
-          <span>Replacement level (percentile)</span>
-          <strong id="lab-pctile-val">15th</strong>
-        </label>
-        <input type="range" id="lab-pctile" min="0" max="90" step="5" value="15" style="width:100%;" oninput="labUpdate()">
-      </div>
-      <div style="margin-bottom:16px;">
-        <label style="display:flex;justify-content:space-between;font-size:0.85rem;">
-          <span>Full-value bench cutoff</span>
-          <strong id="lab-cutoff-val">15 players</strong>
-        </label>
-        <input type="range" id="lab-cutoff" min="0" max="30" step="1" value="15" style="width:100%;" oninput="labUpdate()">
-      </div>
-      <div style="margin-bottom:4px;">
-        <label style="display:flex;justify-content:space-between;font-size:0.85rem;">
-          <span>Decay rate beyond cutoff</span>
-          <strong id="lab-decay-val">65%</strong>
-        </label>
-        <input type="range" id="lab-decay" min="0" max="100" step="5" value="65" style="width:100%;" oninput="labUpdate()">
-      </div>
-      <button class="conf-btn" style="margin-top:10px;" onclick="labReset()">Reset to official formula</button>
+    <div class="section-title" style="margin-top:10px;">🎛️ Formula Lab</div>
+    <div id="lab-subtab-toggle" style="margin:10px 0 18px;">
+      <button class="conf-btn active" id="lab-subtab-bench" onclick="setLabSubtab('bench')">Bench Valuation</button>
+      <button class="conf-btn" id="lab-subtab-radar" onclick="setLabSubtab('radar')">Radar Sandbox</button>
     </div>
-    <div id="lab-table"></div>
+
+    <div id="lab-bench-section">
+      <p style="color:var(--text3);font-size:0.85rem;max-width:640px;margin:6px 0 18px;">
+        Total Roster = Starting Power + Bench Value. Bench Value is built from Value Over
+        Replacement (VOR) for each bench player. Drag the sliders to see how different
+        assumptions would change the rankings. The <strong>official formula</strong> uses
+        15th percentile / top 15 / 65% decay.
+      </p>
+      <div class="card-block" style="max-width:640px;margin-bottom:20px;">
+        <div style="margin-bottom:16px;">
+          <label style="display:flex;justify-content:space-between;font-size:0.85rem;">
+            <span>Replacement level (percentile)</span>
+            <strong id="lab-pctile-val">15th</strong>
+          </label>
+          <input type="range" id="lab-pctile" min="0" max="90" step="5" value="15" style="width:100%;" oninput="labUpdate()">
+        </div>
+        <div style="margin-bottom:16px;">
+          <label style="display:flex;justify-content:space-between;font-size:0.85rem;">
+            <span>Full-value bench cutoff</span>
+            <strong id="lab-cutoff-val">15 players</strong>
+          </label>
+          <input type="range" id="lab-cutoff" min="0" max="30" step="1" value="15" style="width:100%;" oninput="labUpdate()">
+        </div>
+        <div style="margin-bottom:4px;">
+          <label style="display:flex;justify-content:space-between;font-size:0.85rem;">
+            <span>Decay rate beyond cutoff</span>
+            <strong id="lab-decay-val">65%</strong>
+          </label>
+          <input type="range" id="lab-decay" min="0" max="100" step="5" value="65" style="width:100%;" oninput="labUpdate()">
+        </div>
+        <button class="conf-btn" style="margin-top:10px;" onclick="labReset()">Reset to official formula</button>
+      </div>
+      <div id="lab-table"></div>
+    </div>
+
+    <div id="lab-radar-section" style="display:none;">
+      <p style="color:var(--text3);font-size:0.85rem;max-width:640px;margin:6px 0 18px;">
+        Build a custom radar chart. Pick a team, optionally a second team to compare, and
+        3-8 categories. Each axis is scaled to a percentile within the team's conference,
+        same as the Team Strength radar on team pages.
+      </p>
+      <div class="card-block" style="max-width:640px;margin-bottom:20px;">
+        <div style="margin-bottom:14px;">
+          <label style="font-size:0.85rem;display:block;margin-bottom:4px;">Team</label>
+          <select id="radar-team-a" onchange="radarSandboxUpdate()" style="width:100%;padding:6px;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:6px;"></select>
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="font-size:0.85rem;display:block;margin-bottom:4px;">Compare against (optional)</label>
+          <select id="radar-team-b" onchange="radarSandboxUpdate()" style="width:100%;padding:6px;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:6px;">
+            <option value="">None</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.85rem;display:block;margin-bottom:6px;">Categories (pick 3-8)</label>
+          <div id="radar-cat-checkboxes" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+        </div>
+      </div>
+      <div id="radar-sandbox-svg" style="text-align:center;"></div>
+    </div>
   </div>
+
   <div id="how-it-works-view" style="display:none;">
     <button class="back-btn" onclick="showDirectory()">&larr; Back to standings</button>
     <div id="how-it-works-content"></div>
@@ -492,6 +525,160 @@ function labReset(){
   document.getElementById('lab-cutoff').value = 15;
   document.getElementById('lab-decay').value = 65;
   labUpdate();
+}
+
+function setLabSubtab(which){
+  document.getElementById('lab-subtab-bench').classList.toggle('active', which==='bench');
+  document.getElementById('lab-subtab-radar').classList.toggle('active', which==='radar');
+  document.getElementById('lab-bench-section').style.display = which==='bench' ? 'block' : 'none';
+  document.getElementById('lab-radar-section').style.display = which==='radar' ? 'block' : 'none';
+  if (which === 'radar') {
+    radarSandboxInit();
+  }
+}
+
+const RADAR_SANDBOX_CATS = [
+  {key:'QB', label:'QB', kind:'pos'}, {key:'RB', label:'RB', kind:'pos'},
+  {key:'WR', label:'WR', kind:'pos'}, {key:'TE', label:'TE', kind:'pos'},
+  {key:'PK', label:'PK', kind:'pos'}, {key:'DT', label:'DT', kind:'pos'},
+  {key:'DE', label:'DE', kind:'pos'}, {key:'LB', label:'LB', kind:'pos'},
+  {key:'CB', label:'CB', kind:'pos'}, {key:'S', label:'S', kind:'pos'},
+  {key:'playoff_pct', label:'Playoff %', kind:'sim'},
+  {key:'champ_pct', label:'Champ %', kind:'sim'},
+  {key:'bench', label:'Bench Depth', kind:'field', field:'benchTotal'},
+  {key:'picks27', label:"'27 Picks", kind:'pickyear', year:2027},
+  {key:'picks28', label:"'28 Picks", kind:'pickyear', year:2028},
+  {key:'picks29', label:"'29 Picks", kind:'pickyear', year:2029},
+];
+let radarSandboxSelectedCats = ['QB','RB','WR','DT','LB','S'];
+
+function radarSandboxRawValue(team, cat){
+  if (cat.kind === 'pos') {
+    const players = (team.starters||[]).concat(team.bench||[]);
+    return players.filter(p => p.pos === cat.key).reduce((s,p) => s + val(p), 0);
+  }
+  if (cat.kind === 'sim') {
+    return (team.sim && team.sim[cat.key]) || 0;
+  }
+  if (cat.kind === 'field') {
+    return team[cat.field] || 0;
+  }
+  if (cat.kind === 'pickyear') {
+    return (team.picks||[]).filter(p => p.year === cat.year).reduce((s,p) => s + p.value, 0);
+  }
+  return 0;
+}
+
+function radarSandboxInit(){
+  const teamSelA = document.getElementById('radar-team-a');
+  const teamSelB = document.getElementById('radar-team-b');
+  if (!teamSelA.options.length) {
+    ['main','futures'].forEach(lg => {
+      APP_DATA[lg].forEach(t => {
+        const label = `${t.team} (${lg==='main'?'Main':'Futures'} / ${t.conf})`;
+        teamSelA.innerHTML += `<option value="${lg}|${esc(t.team)}">${esc(label)}</option>`;
+        teamSelB.innerHTML += `<option value="${lg}|${esc(t.team)}">${esc(label)}</option>`;
+      });
+    });
+    teamSelA.value = `${currentLeague}|${currentTeam || APP_DATA[currentLeague][0].team}`;
+  }
+  const boxEl = document.getElementById('radar-cat-checkboxes');
+  if (!boxEl.innerHTML) {
+    boxEl.innerHTML = RADAR_SANDBOX_CATS.map(cat =>
+      `<label style="display:flex;align-items:center;gap:4px;font-size:0.78rem;background:var(--bg2);padding:4px 8px;border-radius:12px;cursor:pointer;">
+        <input type="checkbox" value="${cat.key}" ${radarSandboxSelectedCats.includes(cat.key)?'checked':''} onchange="radarCatToggle(this)"> ${cat.label}
+      </label>`
+    ).join('');
+  }
+  radarSandboxUpdate();
+}
+
+function radarCatToggle(checkbox){
+  const key = checkbox.value;
+  if (checkbox.checked) {
+    if (radarSandboxSelectedCats.length >= 8) { checkbox.checked = false; return; }
+    radarSandboxSelectedCats.push(key);
+  } else {
+    if (radarSandboxSelectedCats.length <= 3) { checkbox.checked = true; return; }
+    radarSandboxSelectedCats = radarSandboxSelectedCats.filter(k => k !== key);
+  }
+  radarSandboxUpdate();
+}
+
+function radarSandboxUpdate(){
+  const aVal = document.getElementById('radar-team-a').value;
+  const bVal = document.getElementById('radar-team-b').value;
+  if (!aVal) return;
+  const [aLg, aName] = aVal.split('|');
+  const teamA = APP_DATA[aLg].find(t => t.team === aName);
+  const confTeamsA = teamsForConf(aLg, teamA.conf);
+  let teamB = null, confTeamsB = null;
+  if (bVal) {
+    const [bLg, bName] = bVal.split('|');
+    teamB = APP_DATA[bLg].find(t => t.team === bName);
+    confTeamsB = teamsForConf(bLg, teamB.conf);
+  }
+
+  const cats = RADAR_SANDBOX_CATS.filter(c => radarSandboxSelectedCats.includes(c.key));
+  const n = cats.length;
+  const cx = 160, cy = 155, maxR = 105;
+  const angleFor = i => -Math.PI/2 + i * (2*Math.PI/n);
+  const pointAt = (i, rFrac) => {
+    const a = angleFor(i);
+    return [cx + maxR*rFrac*Math.cos(a), cy + maxR*rFrac*Math.sin(a)];
+  };
+  function percentileFor(team, confTeams, cat){
+    const allVals = confTeams.map(t => radarSandboxRawValue(t, cat)).sort((a,b)=>a-b);
+    const myVal = radarSandboxRawValue(team, cat);
+    let rank = allVals.filter(v => v <= myVal).length;
+    return allVals.length > 1 ? (rank-1)/(allVals.length-1) : 0.5;
+  }
+
+  let gridHTML = '';
+  [0.25,0.5,0.75,1.0].forEach(frac => {
+    const pts = cats.map((_,i) => pointAt(i,frac).join(',')).join(' ');
+    gridHTML += `<polygon points="${pts}" fill="none" stroke="#2d3748" stroke-width="1"/>`;
+  });
+  let axisHTML = '';
+  cats.forEach((cat,i) => {
+    const [x,y] = pointAt(i,1.0);
+    axisHTML += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#2d3748" stroke-width="1"/>`;
+  });
+
+  const fracA = cats.map(cat => percentileFor(teamA, confTeamsA, cat));
+  const ptsA = cats.map((cat,i) => pointAt(i, fracA[i]).join(',')).join(' ');
+  let shapeHTML = `<polygon points="${ptsA}" fill="rgba(246,201,14,0.28)" stroke="var(--gold)" stroke-width="2.5"/>`;
+  cats.forEach((cat,i) => {
+    const [x,y] = pointAt(i, fracA[i]);
+    shapeHTML += `<circle cx="${x}" cy="${y}" r="4" fill="var(--gold)" stroke="#0f1117" stroke-width="1.5"/>`;
+  });
+
+  let shapeBHTML = '';
+  if (teamB) {
+    const fracB = cats.map(cat => percentileFor(teamB, confTeamsB, cat));
+    const ptsB = cats.map((cat,i) => pointAt(i, fracB[i]).join(',')).join(' ');
+    shapeBHTML = `<polygon points="${ptsB}" fill="rgba(99,179,237,0.22)" stroke="#63b3ed" stroke-width="2.5"/>`;
+    cats.forEach((cat,i) => {
+      const [x,y] = pointAt(i, fracB[i]);
+      shapeBHTML += `<circle cx="${x}" cy="${y}" r="4" fill="#63b3ed" stroke="#0f1117" stroke-width="1.5"/>`;
+    });
+  }
+
+  let labelHTML = '';
+  cats.forEach((cat,i) => {
+    const [x,y] = pointAt(i, 1.25);
+    labelHTML += `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" fill="#e2e8f0" font-size="12" font-weight="700">${esc(cat.label)}</text>`;
+  });
+
+  const svg = `<svg viewBox="0 0 320 310" style="max-width:360px;">
+    ${gridHTML}${axisHTML}${shapeHTML}${shapeBHTML}${labelHTML}
+  </svg>
+  <div style="font-size:0.75rem;color:var(--text3);">
+    <span style="color:var(--gold);">&#9679;</span> ${esc(teamA.team)}
+    ${teamB ? ` &nbsp;&nbsp; <span style="color:#63b3ed;">&#9679;</span> ${esc(teamB.team)}` : ''}
+    &nbsp;&nbsp; (percentile within conference)
+  </div>`;
+  document.getElementById('radar-sandbox-svg').innerHTML = svg;
 }
 
 function labReplacementLevels(league, pctile){
