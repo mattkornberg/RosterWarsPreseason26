@@ -156,6 +156,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <button class="league-btn active" id="btn-league-main" onclick="setLeague('main')">Main League</button>
       <button class="league-btn" id="btn-league-futures" onclick="setLeague('futures')">Futures League</button>
       <button class="league-btn" id="btn-league-rankings" onclick="showRankings()">Player Rankings</button>
+      <button class="league-btn" id="btn-league-lab" onclick="showFormulaLab()">🎛️ Formula Lab</button>
     </div>
     <div class="conf-toggle" id="conf-toggle"></div>
     <button class="how-it-works-btn" onclick="showHowItWorks()">⚙️ How It Works</button>
@@ -173,6 +174,41 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <button class="back-btn" onclick="showDirectory()">&larr; Back to standings</button>
     <div id="rankings-pos-toggle" style="margin:14px 0;"></div>
     <div id="rankings-list"></div>
+  </div>
+  <div id="formula-lab-view" style="display:none;">
+    <button class="back-btn" onclick="showDirectory()">&larr; Back to standings</button>
+    <div class="section-title" style="margin-top:10px;">🎛️ Bench Valuation Formula Lab</div>
+    <p style="color:var(--text3);font-size:0.85rem;max-width:640px;margin:6px 0 18px;">
+      Total Roster = Starting Power + Bench Value. Bench Value is built from Value Over
+      Replacement (VOR) for each bench player. Drag the sliders to see how different
+      assumptions would change the rankings. The <strong>official formula</strong> uses
+      15th percentile / top 15 / 65% decay.
+    </p>
+    <div class="card-block" style="max-width:640px;margin-bottom:20px;">
+      <div style="margin-bottom:16px;">
+        <label style="display:flex;justify-content:space-between;font-size:0.85rem;">
+          <span>Replacement level (percentile)</span>
+          <strong id="lab-pctile-val">15th</strong>
+        </label>
+        <input type="range" id="lab-pctile" min="0" max="90" step="5" value="15" style="width:100%;" oninput="labUpdate()">
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:flex;justify-content:space-between;font-size:0.85rem;">
+          <span>Full-value bench cutoff</span>
+          <strong id="lab-cutoff-val">15 players</strong>
+        </label>
+        <input type="range" id="lab-cutoff" min="0" max="30" step="1" value="15" style="width:100%;" oninput="labUpdate()">
+      </div>
+      <div style="margin-bottom:4px;">
+        <label style="display:flex;justify-content:space-between;font-size:0.85rem;">
+          <span>Decay rate beyond cutoff</span>
+          <strong id="lab-decay-val">65%</strong>
+        </label>
+        <input type="range" id="lab-decay" min="0" max="100" step="5" value="65" style="width:100%;" oninput="labUpdate()">
+      </div>
+      <button class="conf-btn" style="margin-top:10px;" onclick="labReset()">Reset to official formula</button>
+    </div>
+    <div id="lab-table"></div>
   </div>
   <div id="how-it-works-view" style="display:none;">
     <button class="back-btn" onclick="showDirectory()">&larr; Back to standings</button>
@@ -366,6 +402,7 @@ function openTeam(name){
   document.getElementById('directory-view').style.display = 'none';
   document.getElementById('how-it-works-view').style.display = 'none';
   document.getElementById('rankings-view').style.display = 'none';
+  document.getElementById('formula-lab-view').style.display = 'none';
   document.getElementById('team-view').style.display = 'block';
 
   document.getElementById('team-header').innerHTML = `
@@ -402,8 +439,10 @@ function showDirectory(){
   document.getElementById('team-view').style.display = 'none';
   document.getElementById('how-it-works-view').style.display = 'none';
   document.getElementById('rankings-view').style.display = 'none';
+  document.getElementById('formula-lab-view').style.display = 'none';
   document.getElementById('directory-view').style.display = 'block';
   document.getElementById('btn-league-rankings').classList.remove('active');
+  document.getElementById('btn-league-lab').classList.remove('active');
   currentTeam = null;
 }
 
@@ -411,6 +450,7 @@ function showHowItWorks(){
   document.getElementById('team-view').style.display = 'none';
   document.getElementById('directory-view').style.display = 'none';
   document.getElementById('rankings-view').style.display = 'none';
+  document.getElementById('formula-lab-view').style.display = 'none';
   document.getElementById('how-it-works-view').style.display = 'block';
   if (!document.getElementById('how-it-works-content').innerHTML) {
     document.getElementById('how-it-works-content').innerHTML = buildHowItWorksHTML();
@@ -424,12 +464,119 @@ function showRankings(){
   document.getElementById('team-view').style.display = 'none';
   document.getElementById('how-it-works-view').style.display = 'none';
   document.getElementById('directory-view').style.display = 'none';
+  document.getElementById('formula-lab-view').style.display = 'none';
   document.getElementById('rankings-view').style.display = 'block';
   document.getElementById('btn-league-rankings').classList.add('active');
+  document.getElementById('btn-league-lab').classList.remove('active');
   currentTeam = null;
   renderRankingsPosToggle();
   renderRankingsList();
   window.scrollTo(0,0);
+}
+
+function showFormulaLab(){
+  document.getElementById('team-view').style.display = 'none';
+  document.getElementById('how-it-works-view').style.display = 'none';
+  document.getElementById('directory-view').style.display = 'none';
+  document.getElementById('rankings-view').style.display = 'none';
+  document.getElementById('formula-lab-view').style.display = 'block';
+  document.getElementById('btn-league-rankings').classList.remove('active');
+  document.getElementById('btn-league-lab').classList.add('active');
+  currentTeam = null;
+  labUpdate();
+  window.scrollTo(0,0);
+}
+
+function labReset(){
+  document.getElementById('lab-pctile').value = 15;
+  document.getElementById('lab-cutoff').value = 15;
+  document.getElementById('lab-decay').value = 65;
+  labUpdate();
+}
+
+function labReplacementLevels(league, pctile){
+  const byPos = {};
+  APP_DATA[league].forEach(t => {
+    ['starters','bench'].forEach(bucket => {
+      t[bucket].forEach(p => {
+        (byPos[p.pos] = byPos[p.pos] || []).push(val(p));
+      });
+    });
+  });
+  const levels = {};
+  Object.keys(byPos).forEach(pos => {
+    const arr = byPos[pos].slice().sort((a,b)=>a-b);
+    levels[pos] = arr[Math.floor(arr.length * pctile/100)] || 0;
+  });
+  return levels;
+}
+
+function labBenchValue(team, repl, cutoff, decay){
+  const vor = team.bench.map(p => Math.max(0, val(p) - (repl[p.pos]||0))).sort((a,b)=>b-a);
+  let total = 0, counted = null;
+  vor.forEach((v,i) => {
+    counted = i < cutoff ? v : (counted ? counted*decay : 0);
+    total += counted;
+  });
+  return total;
+}
+
+function labUpdate(){
+  const pctile = parseInt(document.getElementById('lab-pctile').value);
+  const cutoff = parseInt(document.getElementById('lab-cutoff').value);
+  const decayPct = parseInt(document.getElementById('lab-decay').value);
+  const decay = decayPct/100;
+
+  document.getElementById('lab-pctile-val').textContent = pctile + 'th';
+  document.getElementById('lab-cutoff-val').textContent = cutoff + ' player' + (cutoff===1?'':'s');
+  document.getElementById('lab-decay-val').textContent = decayPct + '%';
+
+  const OFFICIAL = {pctile:15, cutoff:15, decay:0.65};
+  const isOfficial = pctile===OFFICIAL.pctile && cutoff===OFFICIAL.cutoff && decay===OFFICIAL.decay;
+
+  let html = '';
+  ['main','futures'].forEach(league => {
+    const repl = labReplacementLevels(league, pctile);
+    const replOfficial = labReplacementLevels(league, OFFICIAL.pctile);
+    const rows = APP_DATA[league].map(t => {
+      const bv = labBenchValue(t, repl, cutoff, decay);
+      const bvOfficial = labBenchValue(t, replOfficial, OFFICIAL.cutoff, OFFICIAL.decay);
+      return {
+        team: t.team,
+        conf: t.conf,
+        totalLab: t.starterTotal + bv,
+        totalOfficial: t.starterTotal + bvOfficial
+      };
+    });
+    const rankedLab = rows.slice().sort((a,b)=>b.totalLab-a.totalLab);
+    const rankedOfficial = rows.slice().sort((a,b)=>b.totalOfficial-a.totalOfficial);
+    const officialRank = {};
+    rankedOfficial.forEach((r,i) => officialRank[r.team] = i+1);
+
+    html += `<div class="section-title" style="margin-top:22px;">${league==='main'?'Main League':'Futures League'}</div>`;
+    html += `<div class="trade-card">`;
+    rankedLab.forEach((r,i) => {
+      const labRank = i+1;
+      const offRank = officialRank[r.team];
+      const diff = offRank - labRank;
+      let diffHTML = '';
+      if (!isOfficial && diff !== 0) {
+        const arrow = diff > 0 ? '▲' : '▼';
+        const color = diff > 0 ? 'var(--good,#4caf50)' : 'var(--bad,#e05252)';
+        diffHTML = `<span style="color:${color};font-size:0.75rem;margin-left:8px;">${arrow} ${Math.abs(diff)}</span>`;
+      }
+      html += `<div class="lineup-row" style="padding:7px 0;border-bottom:1px solid var(--border);">
+        <span style="display:inline-block;width:28px;color:var(--text3);font-weight:700;">${labRank}</span>
+        <span class="conf-tag ${r.conf}" style="font-size:0.65rem;">${esc(r.conf)}</span>
+        <strong style="margin-left:8px;">${esc(r.team)}</strong>
+        ${diffHTML}
+        <strong style="float:right;">${r.totalLab.toFixed(1)}</strong>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+
+  document.getElementById('lab-table').innerHTML = html;
 }
 
 function renderRankingsPosToggle(){
